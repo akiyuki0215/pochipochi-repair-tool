@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ポチポチ修理受付ツール</title>
+<style>
+  :root{
+    --dom-accent:#1f7a8c;
+    --ovr-accent:#8c4b1f;
+  }
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","BIZ UDPGothic",sans-serif;margin:24px}
+  h1{margin-bottom:8px}
+  .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;background:#fff}
+  .btn{display:inline-block;padding:10px 14px;border:1px solid #ccc;border-radius:10px;cursor:pointer;margin:8px 8px 0 0;font-size:15px}
+  .btn:hover{background:#f5f5f5}
+  .btn.dom{border-color:var(--dom-accent)}
+  .btn.ovr{border-color:var(--ovr-accent)}
+  .path{font-size:12px;color:#666;margin-bottom:8px}
+  .result{background:#f7fff7;border:1px solid #bde5bd}
+  .note{font-size:12px;color:#666;margin-top:8px}
+  .section{margin-top:8px}
+  .section h3{display:flex;align-items:center;font-size:16px;margin:8px 0 4px 0}
+  .section h3 .bar{width:6px;height:16px;border-radius:3px;margin-right:8px}
+  .dom .bar{background:var(--dom-accent)}
+  .ovr .bar{background:var(--ovr-accent)}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .pill{border:1px solid #bbb;border-radius:999px;padding:6px 10px;cursor:pointer;font-size:13px}
+  .pill.active{border-color:#000}
+</style>
+</head>
+<body>
+<h1>ポチポチ修理受付ツール</h1>
+<div class="card">
+  <div class="path" id="path"></div>
+  <div id="content">読み込み中…</div>
+  <div style="margin-top:12px">
+    <button class="btn" id="backBtn" style="display:none">← ひとつ戻る</button>
+    <button class="btn" id="resetBtn">最初から</button>
+  </div>
+</div>
+
+<script>
+// ==== 設定 ====
+const ALL_BRANDS = ["NEC","Fujitsu","Lenovo","Surface","Dell","ASUS","Dynabook","MSI","VAIO","Mouse Computer"];
+const DOMESTIC_SET = new Set(["NEC","Fujitsu","Dynabook","VAIO"]); // 国内
+const OVERSEAS_SET = new Set(["ASUS","Dell","Lenovo","MSI","Mouse Computer","Surface"]); // 海外（Surface含む）
+
+// 50音用かな読み（簡易）
+const KANA = {
+  "NEC":"エヌイーシー",
+  "Fujitsu":"フジツウ",
+  "Lenovo":"レノボ",
+  "Surface":"サーフェス",
+  "Dell":"デル",
+  "ASUS":"エイスース",
+  "Dynabook":"ダイナブック",
+  "MSI":"エムエスアイ",
+  "VAIO":"バイオ",
+  "Mouse Computer":"マウスコンピューター"
+};
+
+let sortMode = "kana"; // "kana"（50音） or "az"（A→Z）
+
+// ==== フロー定義 ====
+const FLOW = { start: "メーカー選択", nodes: {} };
+
+// 国内メーカー分岐
+function buildDomestic(b){
+  FLOW.nodes[`${b}_first`] = {
+    type: "choice",
+    question: `[${b}] メーカー保証がありますか？`,
+    options: [
+      { label: "はい", next: `${b}_damageCheck` },
+      { label: "いいえ", next: `${b}_nojimaWarranty` }
+    ]
+  };
+  FLOW.nodes[`${b}_damageCheck`] = {
+    type: "choice",
+    question: `[${b}] 破損・水濡れ・火災・落雷・システム不良のいずれかに該当しますか？`,
+    options: [
+      { label: "はい", next: `${b}_premClass_possible` },
+      { label: "いいえ", next: `${b}_prepay_accept` }
+    ]
+  };
+  FLOW.nodes[`${b}_premClass_possible`] = {
+    type: "result",
+    title: `[${b}] プレミアム保証クラスで対応できる可能性`,
+    details: [
+      "・ノジマのプレミアム保証クラスで保証対応できる可能性があります。",
+      "・保証規約を確認のうえ、必要書類のご案内をしてください。"
+    ]
+  };
+  FLOW.nodes[`${b}_prepay_accept`] = {
+    type: "result",
+    title: `[${b}] 修理受付は可能（前受け金）`,
+    details: [
+      "・修理受付は可能です。",
+      "・前受け金5,500円（現金のみ）をいただいて修理受付してください。"
+    ]
+  };
+  FLOW.nodes[`${b}_nojimaWarranty`] = {
+    type: "choice",
+    question: `[${b}] ノジマの保証に入っていますか？`,
+    options: [
+      { label: "はい", next: `${b}_natural_or_other` },
+      { label: "いいえ", next: `${b}_prepay_accept2` }
+    ]
+  };
+  FLOW.nodes[`${b}_prepay_accept2`] = {
+    type: "result",
+    title: `[${b}] 修理受付は可能（前受け金）`,
+    details: [
+      "・前受け金5,500円（現金のみ）をいただいて修理受付可能です。"
+    ]
+  };
+  FLOW.nodes[`${b}_natural_or_other`] = {
+    type: "choice",
+    question: `[${b}] 自然故障ですか？それ以外ですか？`,
+    options: [
+      { label: "自然故障", next: `${b}_premium_possible` },
+      { label: "それ以外", next: `${b}_premium_plus_possible` }
+    ]
+  };
+  FLOW.nodes[`${b}_premium_possible`] = {
+    type: "result",
+    title: `[${b}] プレミアム保証で対応可能な可能性あり`,
+    details: [
+      "・自然故障としてプレミアム保証で対応できる可能性があります。",
+      "・保証規約を確認のうえ、受付を進めてください。"
+    ]
+  };
+  FLOW.nodes[`${b}_premium_plus_possible`] = {
+    type: "result",
+    title: `[${b}] プレミアム保証プラスで対応可能な可能性あり`,
+    details: [
+      "・自然故障以外のため、プレミアム保証プラスで対応できる可能性があります。",
+      "・加入状況を確認のうえ、受付をご案内ください。"
+    ]
+  };
+}
+
+// 海外メーカー分岐（Surface含む）
+function buildOverseas(b){
+  // Surfaceは選択即結果
+  if (b === "Surface") {
+    FLOW.nodes["Surface_first"] = {
+      type: "result",
+      title: "[Surface] 店舗修理受付不可",
+      details: [
+        "・当店での修理受付はできません。",
+        "・お客様とメーカーで直接やり取りになります。"
+      ]
+    };
+    return;
+  }
+  FLOW.nodes[`${b}_first`] = {
+    type: "choice",
+    question: `[${b}] ノジマの保証に入っていますか？`,
+    options: [
+      { label: "はい", next: `${b}_store_ok` },
+      { label: "いいえ", next: `${b}_store_ng_direct` }
+    ]
+  };
+  FLOW.nodes[`${b}_store_ok`] = {
+    type: "result",
+    title: `[${b}] 店舗での修理受付：対応可能`,
+    details: [
+      "・ノジマ保証加入のため、店舗で修理受付が可能です。",
+      "・規約と必要書類を確認のうえ、受付手続きを進めてください。"
+    ]
+  };
+  FLOW.nodes[`${b}_store_ng_direct`] = {
+    type: "result",
+    title: `[${b}] 店舗での修理受付は不可（メーカー直接案内）`,
+    details: [
+      "・ノジマ保証未加入のため、当店での修理受付はできません。",
+      "・お客様とメーカーの直接対応（公式窓口）をご案内してください。"
+    ]
+  };
+}
+
+// 構築
+for(const b of ALL_BRANDS){
+  if (DOMESTIC_SET.has(b)) buildDomestic(b);
+  else if (OVERSEAS_SET.has(b)) buildOverseas(b);
+}
+
+// ==== UIレンダラ ====
+const state={history:[],current:FLOW.start};
+
+function kanaKey(label){ return (KANA[label]||label); }
+
+function getSortedGroups(){
+  const domestic = ALL_BRANDS.filter(b=>DOMESTIC_SET.has(b));
+  const overseas = ALL_BRANDS.filter(b=>OVERSEAS_SET.has(b));
+  const cmp = (a,b)=>{
+    if (sortMode==="az") return a.localeCompare(b,'en',{sensitivity:'base'});
+    return kanaKey(a).localeCompare(kanaKey(b),'ja');
+  };
+  domestic.sort(cmp);
+  overseas.sort(cmp);
+  return {domestic,overseas};
+}
+
+function renderStart(){
+  const content=document.getElementById('content'); content.innerHTML="";
+  // 並び替えトグル
+  const tb=document.createElement('div'); tb.className="toolbar";
+  const label=document.createElement('span'); label.textContent="並び替え:"; tb.appendChild(label);
+  const pKana=document.createElement('span'); pKana.className="pill"+(sortMode==='kana'?' active':''); pKana.textContent="50音順";
+  pKana.onclick=()=>{sortMode='kana'; render();};
+  const pAz=document.createElement('span'); pAz.className="pill"+(sortMode==='az'?' active':''); pAz.textContent="A→Z";
+  pAz.onclick=()=>{sortMode='az'; render();};
+  tb.appendChild(pKana); tb.appendChild(pAz);
+  content.appendChild(tb);
+
+  const {domestic,overseas}=getSortedGroups();
+
+  // 国内セクション
+  const s1=document.createElement('div'); s1.className="section dom card";
+  const h1=document.createElement('h3'); const b1=document.createElement('span'); b1.className="bar"; h1.appendChild(b1); h1.appendChild(document.createTextNode("国内メーカー"));
+  s1.appendChild(h1);
+  domestic.forEach(name=>{
+    const btn=document.createElement('button'); btn.className="btn dom"; btn.textContent=name;
+    btn.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=`${name}_first`; render(); };
+    s1.appendChild(btn);
+  });
+  content.appendChild(s1);
+
+  // 海外セクション
+  const s2=document.createElement('div'); s2.className="section ovr card";
+  const h2=document.createElement('h3'); const b2=document.createElement('span'); b2.className="bar"; h2.appendChild(b2); h2.appendChild(document.createTextNode("海外メーカー"));
+  s2.appendChild(h2);
+  overseas.forEach(name=>{
+    const btn=document.createElement('button'); btn.className="btn ovr"; btn.textContent=name;
+    btn.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=`${name}_first`; render(); };
+    s2.appendChild(btn);
+  });
+  content.appendChild(s2);
+
+  const note=document.createElement('div'); note.className="note"; note.textContent="※ Surfaceは選択直後に「店舗修理受付不可（メーカーと直接やり取り）」の結果を表示します。";
+  content.appendChild(note);
+}
+
+function renderPath(){const path=[FLOW.start,...state.history.map(h=>h.choice||h.node)];document.getElementById('path').textContent="進行: "+path.join(" > ");}
+
+function render(){
+  renderPath();
+  const node=FLOW.nodes[state.current];
+  if (state.current===FLOW.start){
+    renderStart();
+    document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none";
+    return;
+  }
+  const content=document.getElementById('content'); content.innerHTML="";
+  if(!node){ content.textContent="設定エラー：ノードが見つかりません - "+state.current; return; }
+  if(node.type==="choice"){
+    const q=document.createElement('h2'); q.textContent=node.question||"選択してください"; content.appendChild(q);
+    (node.options||[]).forEach(opt=>{
+      const b=document.createElement('button'); b.className="btn"; b.textContent=opt.label;
+      b.onclick=()=>{ state.history.push({node:state.current,choice:opt.label}); state.current=opt.next; render(); };
+      content.appendChild(b);
+    });
+    const note=document.createElement('div'); note.className="note"; note.textContent="※「← ひとつ戻る」で前の質問に戻れます"; content.appendChild(note);
+  }else{
+    const wrap=document.createElement('div'); wrap.className="card result";
+    const h=document.createElement('h2'); h.textContent=node.title||"結果"; wrap.appendChild(h);
+    const ul=document.createElement('ul'); (node.details||[]).forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
+    wrap.appendChild(ul); content.appendChild(wrap);
+  }
+  document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none";
+}
+
+document.getElementById('resetBtn').onclick=()=>{ state.history=[]; state.current=FLOW.start; render(); };
+document.getElementById('backBtn').onclick=()=>{ if(!state.history.length) return; const last=state.history.pop(); state.current=last.node; render(); };
+render();
+</script>
+</body>
+</html>
