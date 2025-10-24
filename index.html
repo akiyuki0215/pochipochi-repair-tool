@@ -24,9 +24,6 @@
   .section h3 .bar{width:6px;height:16px;border-radius:3px;margin-right:8px}
   .dom .bar{background:var(--dom-accent)}
   .ovr .bar{background:var(--ovr-accent)}
-  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
-  .pill{border:1px solid #bbb;border-radius:999px;padding:6px 10px;cursor:pointer;font-size:13px}
-  .pill.active{border-color:#000}
 </style>
 </head>
 <body>
@@ -42,8 +39,8 @@
 
 <script>
 const ALL_BRANDS = ["NEC","Fujitsu","Lenovo","Surface","Dell","ASUS","Dynabook","MSI","VAIO","Mouse Computer"];
-const DOMESTIC_SET = new Set(["NEC","Fujitsu","Dynabook","VAIO"]);
-const OVERSEAS_SET = new Set(["ASUS","Dell","Lenovo","MSI","Mouse Computer","Surface"]);
+const DOMESTIC_SET = new Set(["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"]);
+const OVERSEAS_SET = new Set(["ASUS","Dell","Lenovo","MSI","Surface"]);
 
 const KANA = {
   "NEC":"エヌイーシー",
@@ -57,8 +54,6 @@ const KANA = {
   "VAIO":"バイオ",
   "Mouse Computer":"マウスコンピューター"
 };
-
-let sortMode = "kana";
 
 const FLOW = { start: "メーカー選択", nodes: {} };
 
@@ -150,10 +145,27 @@ function buildOverseas(b){
   }
   FLOW.nodes[`${b}_first`] = {
     type: "choice",
+    question: `[${b}] メーカー保証がありますか？`,
+    options: [
+      { label: "はい", next: `${b}_nojimaWarranty` },
+      { label: "いいえ", next: `${b}_warn_cost` }
+    ]
+  };
+  FLOW.nodes[`${b}_warn_cost`] = {
+    type: "result",
+    title: `[${b}] 修理受付可能（注意喚起）`,
+    details: [
+      "・ノジマでの修理受付は可能です。",
+      "・ただし、メーカーへ直接依頼するより修理金額が高額になる場合があります。",
+      "・お客様にご説明のうえ、ご判断を尊重してください。"
+    ]
+  };
+  FLOW.nodes[`${b}_nojimaWarranty`] = {
+    type: "choice",
     question: `[${b}] ノジマの保証に入っていますか？`,
     options: [
       { label: "はい", next: `${b}_store_ok` },
-      { label: "いいえ", next: `${b}_store_ng_direct` }
+      { label: "いいえ", next: `${b}_warn_cost` }
     ]
   };
   FLOW.nodes[`${b}_store_ok`] = {
@@ -162,14 +174,6 @@ function buildOverseas(b){
     details: [
       "・ノジマ保証加入のため、店舗で修理受付が可能です。",
       "・規約と必要書類を確認のうえ、受付手続きを進めてください。"
-    ]
-  };
-  FLOW.nodes[`${b}_store_ng_direct`] = {
-    type: "result",
-    title: `[${b}] 店舗での修理受付は不可（メーカー直接案内）`,
-    details: [
-      "・ノジマ保証未加入のため、当店での修理受付はできません。",
-      "・お客様とメーカーの直接対応（公式窓口）をご案内してください。"
     ]
   };
 }
@@ -188,7 +192,6 @@ function getSortedGroups(){
   domestic.sort(cmp); overseas.sort(cmp);
   return {domestic,overseas};
 }
-
 function renderStart(){
   const content=document.getElementById('content'); content.innerHTML="";
   const {domestic,overseas}=getSortedGroups();
