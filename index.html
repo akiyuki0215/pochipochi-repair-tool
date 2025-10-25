@@ -4,44 +4,119 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>PC修理店頭対応判定ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --dom-accent:#1f7a8c;
-    --ovr-accent:#8c4b1f;
+    --brand:#004c99;          /* ノジマブルー */
+    --brand-dark:#00396f;
+    --accent:#007bff;
+    --bg:#f5f7fb;
+    --text:#1b1f24;
+    --muted:#505a66;
+    --card:#ffffff;
+    --border:#e3e7ef;
+    --ok:#16a34a;
+    --warn:#f59e0b;
+    --ng:#ef4444;
+    --info:#3b82f6;
   }
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","BIZ UDPGothic",sans-serif;margin:24px}
-  h1{margin-bottom:8px}
-  .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin-bottom:16px;background:#fff}
-  .btn{display:inline-block;padding:10px 14px;border:1px solid #ccc;border-radius:10px;cursor:pointer;margin:8px 8px 0 0;font-size:15px}
-  .btn:hover{background:#f5f5f5}
-  .btn.dom{border-color:var(--dom-accent)}
-  .btn.ovr{border-color:var(--ovr-accent)}
-  .path{font-size:12px;color:#666;margin-bottom:8px}
-  .result{background:#f7fff7;border:1px solid #bde5bd}
-  .note{font-size:12px;color:#666;margin-top:8px}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#f7fbff 0%, #eef3fa 100%);
+    color:var(--text);
+    font-family:"Noto Sans JP","Roboto",system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+  }
+  /* Header */
+  .site-header{
+    position:sticky; top:0; z-index:100;
+    background:linear-gradient(90deg,var(--brand),var(--brand-dark));
+    color:#fff; padding:14px 20px; box-shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  .site-header .title{font-size:20px; font-weight:700; letter-spacing:.02em}
+  .site-header .subtitle{opacity:.9; font-size:12px; margin-top:2px}
+  /* Container */
+  .container{max-width:980px; margin:28px auto; padding:0 16px}
+  /* Card */
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    box-shadow:0 6px 20px rgba(0,0,0,.06); padding:18px; margin-bottom:18px;
+  }
   .section{margin-top:8px}
-  .section h3{display:flex;align-items:center;font-size:16px;margin:8px 0 4px 0}
-  .section h3 .bar{width:6px;height:16px;border-radius:3px;margin-right:8px}
-  .dom .bar{background:var(--dom-accent)}
-  .ovr .bar{background:var(--ovr-accent)}
+  .section h3{
+    display:flex; align-items:center; gap:10px;
+    font-size:16px; margin:4px 0 10px 0; color:var(--muted); font-weight:700;
+    letter-spacing:.02em;
+  }
+  .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:#fbfdff}
+  .chip i{font-style:normal; font-size:14px}
+  /* Buttons */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:12px 14px; min-width:140px;
+    border:1px solid #cdd6e6; border-radius:12px; cursor:pointer; margin:8px 8px 0 0;
+    background:linear-gradient(180deg,#ffffff 0%, #f3f6fb 100%);
+    font-weight:600; color:#0f172a; transition:.18s ease;
+    box-shadow:0 2px 6px rgba(2,6,23,.04);
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:0 8px 20px rgba(2,6,23,.08);}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{
+    border-color:#a8c6ff;
+    background:linear-gradient(180deg,#e9f2ff 0%, #dbe9ff 100%);
+  }
+  .btn.dom{}
+  .btn.ovr{}
+  .btn.apple{}
+  .btn.surface{}
+  /* Path */
+  .path{font-size:12px;color:var(--muted);margin-bottom:10px}
+  /* Result blocks */
+  .result{border:1px solid var(--border); border-radius:14px; padding:16px; background:#fcfffd}
+  .result h2{margin:0 0 8px 0; font-size:18px}
+  .result ul{margin:0; padding-left:18px}
+  .result.ok{border-left:4px solid var(--ok)}
+  .result.warn{border-left:4px solid var(--warn)}
+  .result.ng{border-left:4px solid var(--ng)}
+  .result.info{border-left:4px solid var(--info)}
+  /* Controls */
+  .controls{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+  .ghost{
+    background:#fff; border:1px dashed var(--border); color:var(--muted);
+  }
+  /* Footer note */
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
-<h1>PC修理店頭対応判定ツール</h1>
-<div class="card">
-  <div class="path" id="path"></div>
-  <div id="content">読み込み中…</div>
-  <div style="margin-top:12px">
-    <button class="btn" id="backBtn" style="display:none">← ひとつ戻る</button>
-    <button class="btn" id="resetBtn">最初から</button>
+<header class="site-header">
+  <div class="title">PC修理店頭対応判定ツール</div>
+  <div class="subtitle">ノジマ店頭オペレーション補助 — メーカー・保証種別に応じた案内を即時表示</div>
+</header>
+
+<main class="container">
+  <div class="card">
+    <div class="path" id="path">進行: メーカー選択</div>
+    <div id="content">読み込み中…</div>
+    <div class="controls">
+      <button class="btn ghost" id="backBtn" style="display:none">← ひとつ戻る</button>
+      <button class="btn primary" id="resetBtn">最初から</button>
+    </div>
   </div>
-</div>
+</main>
 
 <script>
-const ALL_BRANDS = ["NEC","Fujitsu","Lenovo","Surface","Dell","ASUS","Dynabook","MSI","VAIO","Mouse Computer"];
+// ====== マスター設定（メーカー & グループ） ======
+const ALL_BRANDS = ["NEC","Fujitsu","Lenovo","Surface","Dell","ASUS","Dynabook","MSI","VAIO","Mouse Computer","Apple"];
 const DOMESTIC_SET = new Set(["NEC","Fujitsu","Dynabook","VAIO","Mouse Computer"]);
-const OVERSEAS_SET = new Set(["ASUS","Dell","Lenovo","MSI","Surface"]);
+const OVERSEAS_SET = new Set(["ASUS","Dell","Lenovo","MSI"]);         // Surfaceは除外（独立セクション）
+const SURFACE_SET = new Set(["Surface"]);
+const APPLE_SET = new Set(["Apple"]);
 
+// かな読み（50音ソート用）
 const KANA = {
   "NEC":"エヌイーシー",
   "Fujitsu":"フジツウ",
@@ -52,97 +127,59 @@ const KANA = {
   "Dynabook":"ダイナブック",
   "MSI":"エムエスアイ",
   "VAIO":"バイオ",
-  "Mouse Computer":"マウスコンピューター"
+  "Mouse Computer":"マウスコンピューター",
+  "Apple":"アップル"
 };
 
 const FLOW = { start: "メーカー選択", nodes: {} };
 
+// ====== 国内メーカーロジック ======
 function buildDomestic(b){
   FLOW.nodes[`${b}_first`] = {
     type: "choice",
     question: `[${b}] メーカー保証がありますか？`,
     options: [
-      { label: "はい", next: `${b}_damageCheck` },
+      { label: "はい", next: `${b}_warranty_yes_notice` },
       { label: "いいえ", next: `${b}_nojimaWarranty` }
     ]
   };
-  FLOW.nodes[`${b}_damageCheck`] = {
-    type: "choice",
-    question: `[${b}] 破損・水濡れ・火災・落雷・システム不良のいずれかに該当しますか？`,
-    options: [
-      { label: "はい", next: `${b}_premClass_possible` },
-      { label: "いいえ", next: `${b}_prepay_accept` }
-    ]
-  };
-  FLOW.nodes[`${b}_premClass_possible`] = {
-    type: "result",
-    title: `[${b}] プレミアム保証クラスで対応できる可能性`,
+  FLOW.nodes[`${b}_warranty_yes_notice`] = {
+    type: "result", tone: "info",
+    title: `[${b}] メーカー保証内の受付（注意事項あり）`,
     details: [
-      "・ノジマのプレミアム保証クラスで保証対応できる可能性があります。",
-      "・保証規約を確認のうえ、必要書類のご案内をしてください。"
-    ]
-  };
-  FLOW.nodes[`${b}_prepay_accept`] = {
-    type: "result",
-    title: `[${b}] 修理受付は可能（前受け金）`,
-    details: [
-      "・修理受付は可能です。",
-      "・前受け金5,500円（現金のみ）をいただいて修理受付してください。"
+      "・メーカー保証内として受付します。",
+      "・ただし、症状が未再現の場合やお客様都合の修理中止時には、見積もり手数料が発生する場合があります。",
+      "・その旨をお伝えのうえ、受付を進めてください。"
     ]
   };
   FLOW.nodes[`${b}_nojimaWarranty`] = {
     type: "choice",
     question: `[${b}] ノジマの保証に入っていますか？`,
     options: [
-      { label: "はい", next: `${b}_natural_or_other` },
+      { label: "はい", next: `${b}_nojima_yes_store_ok` },
       { label: "いいえ", next: `${b}_prepay_accept2` }
     ]
   };
+  FLOW.nodes[`${b}_nojima_yes_store_ok`] = {
+    type: "result", tone: "ok",
+    title: `[${b}] 店舗での修理受付：可能（ノジマ保証）`,
+    details: [
+      "・店舗での修理受付は可能です。",
+      "・保証対象外となる可能性がある旨をお伝えしつつ、受付を進めてください。",
+      "・前受け金は必要ありません。"
+    ]
+  };
   FLOW.nodes[`${b}_prepay_accept2`] = {
-    type: "result",
+    type: "result", tone: "warn",
     title: `[${b}] 修理受付は可能（前受け金）`,
     details: [
       "・前受け金5,500円（現金のみ）をいただいて修理受付可能です。"
     ]
   };
-  FLOW.nodes[`${b}_natural_or_other`] = {
-    type: "choice",
-    question: `[${b}] 自然故障ですか？それ以外ですか？`,
-    options: [
-      { label: "自然故障", next: `${b}_premium_possible` },
-      { label: "それ以外", next: `${b}_premium_plus_possible` }
-    ]
-  };
-  FLOW.nodes[`${b}_premium_possible`] = {
-    type: "result",
-    title: `[${b}] プレミアム保証で対応可能な可能性あり`,
-    details: [
-      "・自然故障としてプレミアム保証で対応できる可能性があります。",
-      "・保証規約を確認のうえ、受付を進めてください。"
-    ]
-  };
-  FLOW.nodes[`${b}_premium_plus_possible`] = {
-    type: "result",
-    title: `[${b}] プレミアム保証プラスで対応可能な可能性あり`,
-    details: [
-      "・自然故障以外のため、プレミアム保証プラスで対応できる可能性があります。",
-      "・加入状況を確認のうえ、受付をご案内ください。"
-    ]
-  };
 }
 
+// ====== 海外メーカーロジック ======
 function buildOverseas(b){
-  if (b === "Surface") {
-    FLOW.nodes["Surface_first"] = {
-      type: "result",
-      title: "[Surface] 店舗修理受付不可",
-      details: [
-        "・当店での修理受付はできません。",
-        "・お客様とメーカーで直接やり取りになります。"
-      ]
-    };
-    return;
-  }
   FLOW.nodes[`${b}_first`] = {
     type: "choice",
     question: `[${b}] メーカー保証がありますか？`,
@@ -152,7 +189,7 @@ function buildOverseas(b){
     ]
   };
   FLOW.nodes[`${b}_warn_cost`] = {
-    type: "result",
+    type: "result", tone: "warn",
     title: `[${b}] 修理受付可能（注意喚起）`,
     details: [
       "・ノジマでの修理受付は可能です。",
@@ -169,7 +206,7 @@ function buildOverseas(b){
     ]
   };
   FLOW.nodes[`${b}_store_ok`] = {
-    type: "result",
+    type: "result", tone: "ok",
     title: `[${b}] 店舗での修理受付：対応可能`,
     details: [
       "・ノジマ保証加入のため、店舗で修理受付が可能です。",
@@ -178,64 +215,173 @@ function buildOverseas(b){
   };
 }
 
+// ====== Surface（独立セクション・即結果） ======
+function buildSurface(){
+  const b = "Surface";
+  FLOW.nodes[`${b}_first`] = {
+    type: "result", tone: "ng",
+    title: `[${b}] 店舗修理受付不可`,
+    details: [
+      "・当店での修理受付はできません。",
+      "・お客様とメーカーで直接やり取りになります。"
+    ]
+  };
+}
+
+// ====== Apple（独立セクション・ノジマ保証 3択） ======
+function buildApple(){
+  const b="Apple";
+  FLOW.nodes[`${b}_first`] = {
+    type: "choice",
+    question: `[${b}] メーカー保証に加入されていますか？`,
+    options: [
+      { label: "はい", next: `${b}_apple_direct` },
+      { label: "いいえ", next: `${b}_nojimaType` }
+    ]
+  };
+  FLOW.nodes[`${b}_apple_direct`] = {
+    type: "result", tone: "ng",
+    title: `[${b}] 店頭受付不可（Appleへ直接案内）`,
+    details: [
+      "・ノジマ店頭での修理受付はできません。",
+      "・Appleとお客様で直接の修理対応をお願いします。"
+    ]
+  };
+  FLOW.nodes[`${b}_nojimaType`] = {
+    type: "choice",
+    question: `[${b}] ノジマ保証のご加入状況を選択してください`,
+    options: [
+      { label: "① アルティメット保証に加入している", next: `${b}_ultimate_result` },
+      { label: "② プレミアム保証プラスに加入している", next: `${b}_after_20230601` },
+      { label: "③ 保証に入っていない", next: `${b}_apple_direct2` }
+    ]
+  };
+  FLOW.nodes[`${b}_ultimate_result`] = {
+    type: "result", tone: "ok",
+    title: `[${b}] 店舗での商品交換・ポイントバック対応（アルティメット保証）`,
+    details: [
+      "・店舗での商品交換またはポイントバック対応が可能です。",
+      "・マニュアルを確認しながら対応をお願いします。"
+    ]
+  };
+  FLOW.nodes[`${b}_after_20230601`] = {
+    type: "choice",
+    question: `[${b}] 2023年6月1日以降に購入されていますか？`,
+    options: [
+      { label: "はい", next: `${b}_pb_only` },
+      { label: "いいえ", next: `${b}_pre_20230601_flow` }
+    ]
+  };
+  FLOW.nodes[`${b}_pb_only`] = {
+    type: "result", tone: "warn",
+    title: `[${b}] ポイントバックでの対応（修理不可）`,
+    details: [
+      "・定型修理受付先との取引終了により、修理での対応はできません。",
+      "・ポイントバックでの対応となります。",
+      "・ただし、自然故障・物損の場合でフローが異なります。マニュアルをご参照ください。"
+    ]
+  };
+  FLOW.nodes[`${b}_pre_20230601_flow`] = {
+    type: "result", tone: "info",
+    title: `[${b}] 店頭修理受付（ポイントバック対応）`,
+    details: [
+      "・店頭での修理受付のフローは変わりません。",
+      "・Apple用の製品修理申込書を記載の上、修理受付を行ってください。",
+      "・結果としてポイントバックでの対応となります。",
+      "・ただし、自然故障・物損の場合で若干フローが変わりますので、マニュアルの確認をお願いします。"
+    ]
+  };
+  FLOW.nodes[`${b}_apple_direct2`] = {
+    type: "result", tone: "info",
+    title: `[${b}] Appleでの直接修理をご案内（未加入）`,
+    details: [
+      "・ノジマ保証に未加入のため、Appleでの直接修理をご案内ください。"
+    ]
+  };
+}
+
+// ====== 構築 ======
 for(const b of ALL_BRANDS){
   if (DOMESTIC_SET.has(b)) buildDomestic(b);
   else if (OVERSEAS_SET.has(b)) buildOverseas(b);
 }
+buildSurface();
+buildApple();
 
+// ====== 描画ユーティリティ ======
 const state={history:[],current:FLOW.start};
+
 function kanaKey(label){ return (KANA[label]||label); }
 function getSortedGroups(){
-  const domestic = ALL_BRANDS.filter(b=>DOMESTIC_SET.has(b));
-  const overseas = ALL_BRANDS.filter(b=>OVERSEAS_SET.has(b));
-  const cmp = (a,b)=>{return kanaKey(a).localeCompare(kanaKey(b),'ja');};
-  domestic.sort(cmp); overseas.sort(cmp);
-  return {domestic,overseas};
+  const domestic = ALL_BRANDS.filter(b=>DOMESTIC_SET.has(b)).sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja'));
+  const overseas = ALL_BRANDS.filter(b=>OVERSEAS_SET.has(b)).sort((a,b)=>kanaKey(a).localeCompare(kanaKey(b),'ja'));
+  const surface = ALL_BRANDS.filter(b=>SURFACE_SET.has(b));
+  const apple = ALL_BRANDS.filter(b=>APPLE_SET.has(b));
+  return {domestic,overseas,surface,apple};
 }
+
+function section(title, key, brands, btnClass){
+  const wrap=document.createElement('div'); wrap.className=`section card ${key}`;
+  const h=document.createElement('h3');
+  const chip=document.createElement('span'); chip.className='chip';
+  chip.innerHTML = key==='dom' ? '<i>🏯</i>国内メーカー' :
+                   key==='ovr' ? '<i>✈️</i>海外メーカー' :
+                   key==='surface' ? '<i>🪟</i>Surface' :
+                   '<i>🍎</i>Apple';
+  h.appendChild(chip); wrap.appendChild(h);
+  brands.forEach(name=>{
+    const b=document.createElement('button'); b.className=`btn ${btnClass}`; b.textContent=name;
+    b.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=`${name}_first`; render(); };
+    wrap.appendChild(b);
+  });
+  return wrap;
+}
+
 function renderStart(){
   const content=document.getElementById('content'); content.innerHTML="";
-  const {domestic,overseas}=getSortedGroups();
-  const s1=document.createElement('div'); s1.className="section dom card";
-  const h1=document.createElement('h3'); const b1=document.createElement('span'); b1.className="bar"; h1.appendChild(b1); h1.appendChild(document.createTextNode("国内メーカー"));
-  s1.appendChild(h1);
-  domestic.forEach(name=>{
-    const btn=document.createElement('button'); btn.className="btn dom"; btn.textContent=name;
-    btn.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=`${name}_first`; render(); };
-    s1.appendChild(btn);
-  });
-  content.appendChild(s1);
-  const s2=document.createElement('div'); s2.className="section ovr card";
-  const h2=document.createElement('h3'); const b2=document.createElement('span'); b2.className="bar"; h2.appendChild(b2); h2.appendChild(document.createTextNode("海外メーカー"));
-  s2.appendChild(h2);
-  overseas.forEach(name=>{
-    const btn=document.createElement('button'); btn.className="btn ovr"; btn.textContent=name;
-    btn.onclick=()=>{ state.history.push({node:state.current,choice:name}); state.current=`${name}_first`; render(); };
-    s2.appendChild(btn);
-  });
-  content.appendChild(s2);
+  const {domestic,overseas,surface,apple}=getSortedGroups();
+  content.appendChild(section("国内メーカー","dom",domestic,"dom"));
+  content.appendChild(section("海外メーカー","ovr",overseas,"ovr"));
+  content.appendChild(section("Surface","surface",surface,"surface"));
+  content.appendChild(section("Apple","apple",apple,"apple"));
+  const note=document.createElement('div'); note.className='note';
+  note.textContent="※ Surfaceは選択直後に「店舗修理受付不可（メーカーと直接やり取り）」の結果を表示します。";
+  content.appendChild(note);
 }
-function renderPath(){const path=[FLOW.start,...state.history.map(h=>h.choice||h.node)];document.getElementById('path').textContent="進行: "+path.join(" > ");}
+
+function renderPath(){
+  const path=["メーカー選択",...state.history.map(h=>h.choice||h.node)];
+  document.getElementById('path').textContent="進行: "+path.join(" > ");
+}
+
 function render(){
   renderPath();
   const node=FLOW.nodes[state.current];
-  if (state.current===FLOW.start){ renderStart(); document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none"; return; }
-  const content=document.getElementById('content'); content.innerHTML="";
+  const content=document.getElementById('content');
+  if (state.current===FLOW.start){
+    renderStart();
+    document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none";
+    return;
+  }
+  content.innerHTML="";
   if(!node){ content.textContent="設定エラー：ノードが見つかりません - "+state.current; return; }
   if(node.type==="choice"){
     const q=document.createElement('h2'); q.textContent=node.question||"選択してください"; content.appendChild(q);
     (node.options||[]).forEach(opt=>{
-      const b=document.createElement('button'); b.className="btn"; b.textContent=opt.label;
+      const b=document.createElement('button'); b.className="btn primary"; b.textContent=opt.label;
       b.onclick=()=>{ state.history.push({node:state.current,choice:opt.label}); state.current=opt.next; render(); };
       content.appendChild(b);
     });
+    const note=document.createElement('div'); note.className="note"; note.textContent="※「← ひとつ戻る」で前の質問に戻れます"; content.appendChild(note);
   }else{
-    const wrap=document.createElement('div'); wrap.className="card result";
+    const wrap=document.createElement('div'); wrap.className=`result ${node.tone||'info'}`;
     const h=document.createElement('h2'); h.textContent=node.title||"結果"; wrap.appendChild(h);
     const ul=document.createElement('ul'); (node.details||[]).forEach(t=>{ const li=document.createElement('li'); li.textContent=t; ul.appendChild(li); });
     wrap.appendChild(ul); content.appendChild(wrap);
   }
   document.getElementById('backBtn').style.display=state.history.length?"inline-block":"none";
 }
+
 document.getElementById('resetBtn').onclick=()=>{ state.history=[]; state.current=FLOW.start; render(); };
 document.getElementById('backBtn').onclick=()=>{ if(!state.history.length) return; const last=state.history.pop(); state.current=last.node; render(); };
 render();
